@@ -70,10 +70,12 @@ model = tf.keras.models.Sequential(
         tf.keras.layers.Dense(1)
     ]
 )
-
+learning_rate = tf.keras.callbacks.LearningRateScheduler(
+    lambda epoch: 1e-8 * 10**(epoch/20)
+)
 model.compile(loss="mse", optimizer= tf.keras.optimizers.SGD(learning_rate=1e-6, momentum=0.9))
 
-model.fit(dataset, epochs=100, verbose=1)
+model.fit(dataset, epochs=100, callbacks=[learning_rate], verbose=1)
 
 start_point = 1000
 

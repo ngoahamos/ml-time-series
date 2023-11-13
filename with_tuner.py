@@ -35,6 +35,15 @@ def windowed_dataset(series, window_size, batch_size, shuffle_buffer):
 
     return dataset
 
+def build_model(hp):
+    model = tf.keras.models.Sequential()
+    model.add(tf.keras.layers.Dense(30, activation="relu", input_shape=[window_size]))
+    model.add(tf.keras.layers.Dense(10, activation="relu"))
+    model.add(tf.keras.layers.Dense(1))
+    model.compile(loss="mse", optimizer=tf.keras.optimizers.SGD(
+        hp.Choice('momentum', values=[.9,.8])
+    )) # optimizer=tf.keras.optimizers.SGD(hp.Choice('momentum', values=[0.9,0.7,0.5,0.3]), learning_rate=1e-5)
+    return model
 
 time = np.arange(4*365+1, dtype="float32")
 baseline = 10
@@ -47,7 +56,7 @@ noise_level = 6
 series = baseline + trend(time, slop) + seasonality(time, period=365, amplitude=amplitude)
 series += noise(time, noise_level, seed=42)
 
-plot_series(time=time, series=series)
+# plot_series(time=time, series=series)
 
 split_time = 1000
 time_train = time[:split_time]
@@ -60,31 +69,13 @@ window_size = 20
 batch_size = 32
 shuffle_buffer_size = 1000
 
-# dataset = windowed_dataset(x_train, window_size, batch_size, shuffle_buffer_size)
-
 dataset = windowed_dataset(series, window_size, batch_size, shuffle_buffer_size)
 
-model = tf.keras.models.Sequential(
-    [
-        tf.keras.layers.Dense(30, input_shape=[window_size], activation="relu"),
-        tf.keras.layers.Dense(10, activation="relu"),
-        tf.keras.layers.Dense(1)
-    ]
-)
-learning_rate = tf.keras.callbacks.LearningRateScheduler(
-    lambda epoch: 1e-8 * 10**(epoch/20)
-)
-model.compile(loss="mse", optimizer= tf.keras.optimizers.SGD(learning_rate=1e-6, momentum=0.9))
 
-history = model.fit(dataset, epochs=100, verbose=1)
+tuner = keras_tuner.RandomSearch(build_model, objective="loss", max_trials=150)
+tuner.search(dataset,epochs=100,verbose=1)
+tuner.results_summary()
 
-start_point = 1000
-
-print(series[start_point:start_point+window_size])
-print(series[start_point+window_size])
-print(model.predict(series[start_point:start_point+window_size][np.newaxis]))
-
-lrs = 1e-8 * (10**(np.arange(100)/20))
-plt.semilogx(lrs, history.history["loss"])
-plt.axis([1e-8,1e-3,0,300])
-plt.show()
+best_model = tuner.get_best_models()[0]
+print("best model")
+print(best_model)

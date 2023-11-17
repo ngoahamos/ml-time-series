@@ -1,5 +1,6 @@
 import numpy as np
 import tensorflow as tf
+import matplotlib.pyplot as plt
 
 def get_data():
     data_file = 'data/hefei.csv'
@@ -42,8 +43,8 @@ def rnn_model(dataset, valid_dataset):
     ])
     optimizer = tf.keras.optimizers.SGD(learning_rate=1.5e-6, momentum=0.9)
     model.compile(loss= tf.keras.losses.Huber(), optimizer=optimizer, metrics=["mae"])
-    history = model.fit(dataset, epochs=500,verbose=1, validation_data=valid_dataset)
-    print(history)
+    history = model.fit(dataset, epochs=300,verbose=1, validation_data=valid_dataset)
+    return history
 
 def gru_model(dataset, valid_dataset):
     model = tf.keras.models.Sequential([
@@ -53,8 +54,24 @@ def gru_model(dataset, valid_dataset):
     ])
     optimizer = tf.keras.optimizers.SGD(learning_rate=1.5e-6, momentum=0.9)
     model.compile(loss= tf.keras.losses.Huber(), optimizer=optimizer, metrics=["mae"])
-    history = model.fit(dataset, epochs=500,verbose=1, validation_data=valid_dataset)
-    print(history)
+    history = model.fit(dataset, epochs=300,verbose=1, validation_data=valid_dataset)
+    return history
+
+def bi_gru_model(dataset, valid_dataset):
+    model = tf.keras.models.Sequential([
+        tf.keras.layers.Bidirectional(
+            tf.keras.layers.GRU(100, return_sequences=True, input_shape=[None,1], dropout=0.1, recurrent_dropout=0.1)
+        ),
+        tf.keras.layers.Bidirectional(
+            tf.keras.layers.GRU(100, dropout=0.1, recurrent_dropout=0.1)
+        ),
+        tf.keras.layers.Dense(1)
+    ])
+    optimizer = tf.keras.optimizers.SGD(learning_rate=1.5e-6, momentum=0.9)
+    model.compile(loss= tf.keras.losses.Huber(), optimizer=optimizer, metrics=["mae"])
+    history = model.fit(dataset, epochs=300,verbose=1, validation_data=valid_dataset)
+    return history
+
 
 def lstm_model(dataset, valid_dataset):
     model = tf.keras.models.Sequential([
@@ -64,8 +81,8 @@ def lstm_model(dataset, valid_dataset):
     ])
     optimizer = tf.keras.optimizers.SGD(learning_rate=1.5e-6, momentum=0.9)
     model.compile(loss= tf.keras.losses.Huber(), optimizer=optimizer, metrics=["mae"])
-    history = model.fit(dataset, epochs=500,verbose=1, validation_data=valid_dataset)
-    print(history)
+    history = model.fit(dataset, epochs=100,verbose=1, validation_data=valid_dataset)
+    return history
 
 
 time,series = get_data()
@@ -93,5 +110,16 @@ shuffle_buffer_size = 48
 train_dataset = windowed_dataset(x_train, window_size, batch_size, shuffle_buffer_size)
 valid_dataset = windowed_dataset(x_valid, window_size, batch_size, shuffle_buffer_size)
 
-rnn_model(train_dataset, valid_dataset)
+# rnn_model(train_dataset, valid_dataset)
+history = bi_gru_model(train_dataset, valid_dataset)
+
+error_range = np.arange(len(history.history['loss']), dtype="float32")
+
+plt.plot(error_range,history.history['loss'], '-')
+plt.plot(error_range,history.history['val_loss'], '-')
+# plt.plot(prediction_series[start:end],prediction_series[start:end], format)
+plt.xlabel('Time')
+plt.ylabel('Value')
+plt.grid(True)
+plt.show()
 
